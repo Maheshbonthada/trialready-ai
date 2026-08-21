@@ -15,6 +15,7 @@ param entraTenantId string
 param entraClientId string
 param entraIssuer string
 param entraAudience string
+param corsAllowedOrigins string
 
 // Cold start matters for a pilot's first impression: keep one warm replica in
 // prod, allow scale-to-zero in dev/staging where nobody is watching a stopwatch.
@@ -76,6 +77,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'ENTRA_ISSUER', value: entraIssuer }
             { name: 'ENTRA_AUDIENCE', value: entraAudience }
             { name: 'AUTH_DISABLED_FOR_LOCAL_DEV', value: 'false' }
+            { name: 'CORS_ALLOWED_ORIGINS', value: corsAllowedOrigins }
           ]
           probes: [
             {

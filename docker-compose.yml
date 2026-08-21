@@ -11,7 +11,11 @@ services:
       POSTGRES_PASSWORD: trialready
       POSTGRES_DB: trialready
     ports:
-      - "5432:5432"
+      # Host port 5433, not 5432 — many dev machines already run a native
+      # Postgres service on 5432 (this one did), and the two silently collide
+      # instead of erroring, which is a much more confusing failure mode than
+      # a port that's simply different. Match this in DATABASE_URL.
+      - "5433:5432"
     volumes:
       - trialready-pg-data:/var/lib/postgresql/data
     healthcheck:

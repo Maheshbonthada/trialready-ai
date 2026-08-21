@@ -21,8 +21,16 @@ DATABASE_URL = os.environ.get(
 )
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def engine():
+    # Function-scoped, not session-scoped: asyncpg connections are bound to the
+    # event loop they were created on, and pytest-asyncio gives each test
+    # function its own event loop by default. A session-scoped engine reused
+    # across tests would hand test 2 a connection created on test 1's
+    # (now-closed) loop — the exact shape of the "another operation is in
+    # progress" error this used to throw. `create_all` is checkfirst=True by
+    # default, so re-running it per test against the same database is a cheap
+    # no-op after the first test creates the schema.
     eng = create_async_engine(DATABASE_URL, future=True)
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

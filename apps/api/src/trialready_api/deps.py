@@ -13,6 +13,7 @@ from trialready_api.agents.classification_agent import (
     AzureOpenAIDocumentClassifier,
     DocumentClassifier,
     FakeDocumentClassifier,
+    OpenAIDocumentClassifier,
 )
 from trialready_api.agents.ocr_client import AzureDocumentOcrClient, DocumentOcrClient, FakeDocumentOcrClient
 from trialready_api.config import Settings, get_settings
@@ -34,7 +35,9 @@ def get_ocr_client(settings: Settings = Depends(get_settings)) -> DocumentOcrCli
 
 
 def get_classifier(settings: Settings = Depends(get_settings)) -> DocumentClassifier:
-    if settings.azure_openai_endpoint:
+    if settings.ai_provider == "openai" and settings.openai_api_key:
+        return OpenAIDocumentClassifier(api_key=settings.openai_api_key, model=settings.openai_model_fast)
+    if settings.ai_provider == "azure_openai" and settings.azure_openai_endpoint:
         return AzureOpenAIDocumentClassifier(
             endpoint=settings.azure_openai_endpoint,
             deployment=settings.azure_openai_deployment_fast,

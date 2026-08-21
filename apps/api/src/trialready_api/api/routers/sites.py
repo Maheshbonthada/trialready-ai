@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from trialready_api.core.security import AuthenticatedUser, get_current_user
@@ -33,6 +34,19 @@ async def create_site(
     await db.commit()
     await db.refresh(site)
     return site
+
+
+@router.get("", response_model=list[SiteOut])
+async def list_sites(
+    db: AsyncSession = Depends(get_db_session),
+    user: AuthenticatedUser = Depends(get_current_user),
+) -> list[Site]:
+    # Unfiltered for the pilot — every coordinator sees every site. Fine at
+    # pilot scale with one coordinator per site; becomes a real query
+    # (filtered by the site_memberships table) once multi-coordinator sites
+    # exist. See infra/bicep/modules/entra-b2c.md.
+    result = await db.execute(select(Site).order_by(Site.created_at.desc()))
+    return list(result.scalars().all())
 
 
 @router.get("/{site_id}", response_model=SiteOut)
@@ -72,3 +86,15 @@ async def create_protocol(
     await db.commit()
     await db.refresh(protocol)
     return protocol
+
+
+@router.get("/{site_id}/protocols", response_model=list[ProtocolOut])
+async def list_protocols_for_site(
+    site_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+    user: AuthenticatedUser = Depends(get_current_user),
+) -> list[Protocol]:
+    result = await db.execute(
+        select(Protocol).where(Protocol.site_id == site_id).order_by(Protocol.created_at.desc())
+    )
+    return list(result.scalars().all())

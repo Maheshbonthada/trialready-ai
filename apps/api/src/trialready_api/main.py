@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from trialready_api.api.routers import documents, gap_checks, health, sites
+from trialready_api.api.routers import documents, gap_checks, health, protocols, sites
 from trialready_api.config import get_settings
 from trialready_api.core.logging import configure_logging
 from trialready_api.core.telemetry import configure_telemetry
@@ -41,9 +41,11 @@ def create_app() -> FastAPI:
 
     # Locked down deliberately: this API is called by TrialReady's own frontend and
     # nothing else. Widen only for an explicit, reviewed integration partner.
+    # Origins come from config (CORS_ALLOWED_ORIGINS), not a hardcoded guess at a
+    # custom domain — see Settings.cors_allowed_origins.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[o for o in _cors_origins(settings.environment)],
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST"],
         allow_headers=["Authorization", "Content-Type"],
@@ -65,18 +67,11 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(sites.router)
+    app.include_router(protocols.router)
     app.include_router(documents.router)
     app.include_router(gap_checks.router)
 
     return app
-
-
-def _cors_origins(environment: str) -> list[str]:
-    if environment == "local":
-        return ["http://localhost:5173", "http://localhost:3000"]
-    if environment == "prod":
-        return ["https://app.trialready.ai"]
-    return [f"https://app-{environment}.trialready.ai"]
 
 
 app = create_app()

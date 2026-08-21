@@ -20,6 +20,8 @@ from pydantic import BaseModel, Field
 from semantic_kernel.connectors.ai.open_ai import (
     AzureChatCompletion,
     AzureChatPromptExecutionSettings,
+    OpenAIChatCompletion,
+    OpenAIChatPromptExecutionSettings,
 )
 from semantic_kernel.contents import ChatHistory
 
@@ -38,6 +40,19 @@ Rules:
   it null — never infer a date that is not written in the document.
 - confidence is your calibrated probability that document_type_id is correct AND
   the extracted dates are correct, in the range 0.0-1.0.
+
+Respond with ONLY a single JSON object, no prose, no markdown fences, matching
+exactly this shape:
+{
+  "document_type_id": string or null,
+  "confidence": number between 0.0 and 1.0,
+  "effective_date": "YYYY-MM-DD" or null,
+  "expiry_date": "YYYY-MM-DD" or null,
+  "signer_name": string or null,
+  "signed_date": "YYYY-MM-DD" or null,
+  "version_label": string or null,
+  "rationale": "one sentence explaining the decision"
+}
 """
 
 
@@ -58,39 +73,91 @@ class DocumentClassifier(Protocol):
     ) -> ClassificationResult: ...
 
 
+def _parse_or_fallback(raw: str) -> ClassificationResult:
+    """JSON mode guarantees syntactically valid JSON, not schema-conformant JSON —
+    a model can still emit an extra field, a wrong type, or (rarely) nothing
+    parseable at all. Never let that crash the ingestion pipeline or, worse,
+    raise an exception that some caller might swallow into a false "accepted."
+    A parse failure always resolves to confidence 0.0, which the confidence
+    gate (see services/document_ingestion.py) routes to human review — the same
+    safe default as a low-confidence-but-valid response.
+    """
+    try:
+        return ClassificationResult.model_validate_json(raw)
+    except Exception as exc:  # noqa: BLE001 — deliberately broad: any parse failure is the same safe outcome
+        return ClassificationResult(
+            document_type_id=None,
+            confidence=0.0,
+            rationale=f"Model response was not valid structured output ({type(exc).__name__}); needs human review.",
+        )
+
+
+def _build_history(
+    ocr_text: str, kv_pairs: dict[str, str], candidate_types: list[DocumentTypeSpec]
+) -> ChatHistory:
+    candidates_desc = "\n".join(f"- id={c.id!r}: {c.name} (category: {c.category})" for c in candidate_types)
+    history = ChatHistory(system_message=_SYSTEM_PROMPT)
+    history.add_user_message(
+        "Candidate document types:\n"
+        f"{candidates_desc}\n\n"
+        f"Extracted key-value pairs:\n{json.dumps(kv_pairs, indent=2)}\n\n"
+        f"OCR text (truncated to 8000 chars):\n{ocr_text[:8000]}"
+    )
+    return history
+
+
 class AzureOpenAIDocumentClassifier:
+    """Production path. Auth is managed identity via `token_endpoint` — no API
+    key ever lives in config or environment variables. See
+    infra/bicep/modules/openai.bicep, which sets `disableLocalAuth: true` on
+    the account so a key-based fallback isn't even possible.
+    """
+
     def __init__(self, endpoint: str, deployment: str, api_version: str) -> None:
-        # Managed-identity auth (azure-identity's DefaultAzureCredential + a
-        # token provider) is wired at construction time in api/deps.py; this class
-        # only holds the already-configured Semantic Kernel service.
         self._service = AzureChatCompletion(
             deployment_name=deployment,
             endpoint=endpoint,
             api_version=api_version,
+            ad_token_provider=_azure_ad_token_provider,
         )
 
     async def classify(
         self, ocr_text: str, kv_pairs: dict[str, str], candidate_types: list[DocumentTypeSpec]
     ) -> ClassificationResult:
-        candidates_desc = "\n".join(
-            f"- id={c.id!r}: {c.name} (category: {c.category})" for c in candidate_types
-        )
-        history = ChatHistory(system_message=_SYSTEM_PROMPT)
-        history.add_user_message(
-            "Candidate document types:\n"
-            f"{candidates_desc}\n\n"
-            f"Extracted key-value pairs:\n{json.dumps(kv_pairs, indent=2)}\n\n"
-            f"OCR text (truncated to 8000 chars):\n{ocr_text[:8000]}"
-        )
-
+        history = _build_history(ocr_text, kv_pairs, candidate_types)
         settings = AzureChatPromptExecutionSettings(
-            response_format=ClassificationResult,
-            temperature=0.0,  # deterministic classification, not creative generation
-            max_tokens=800,
+            response_format={"type": "json_object"}, temperature=0.0, max_tokens=800
         )
-
         response = await self._service.get_chat_message_content(chat_history=history, settings=settings)
-        return ClassificationResult.model_validate_json(str(response))
+        return _parse_or_fallback(str(response))
+
+
+def _azure_ad_token_provider() -> str:
+    from azure.identity import DefaultAzureCredential
+
+    # Cognitive Services' fixed scope for AAD-authenticated data-plane calls.
+    return DefaultAzureCredential().get_token("https://cognitiveservices.azure.com/.default").token
+
+
+class OpenAIDocumentClassifier:
+    """Pre-Azure path: talks to api.openai.com directly with an API key. Same
+    prompt, same output contract, same confidence gate downstream — swapping
+    this for `AzureOpenAIDocumentClassifier` at deploy time (via
+    `Settings.ai_provider`) changes nothing else in the system.
+    """
+
+    def __init__(self, api_key: str, model: str) -> None:
+        self._service = OpenAIChatCompletion(ai_model_id=model, api_key=api_key)
+
+    async def classify(
+        self, ocr_text: str, kv_pairs: dict[str, str], candidate_types: list[DocumentTypeSpec]
+    ) -> ClassificationResult:
+        history = _build_history(ocr_text, kv_pairs, candidate_types)
+        settings = OpenAIChatPromptExecutionSettings(
+            response_format={"type": "json_object"}, temperature=0.0, max_tokens=800
+        )
+        response = await self._service.get_chat_message_content(chat_history=history, settings=settings)
+        return _parse_or_fallback(str(response))
 
 
 class FakeDocumentClassifier:

@@ -25,6 +25,7 @@ absorb it automatically and only the AI-services line items below grow.
 | Container Registry | Basic | A few image pushes a week | ~$5 |
 | Key Vault | Standard, secrets only | Per-operation pricing, negligible at this volume | <$1 |
 | Log Analytics + App Insights | PerGB2018, 30-day retention | Bounded by not shipping verbose debug logs to prod (`LOG_LEVEL=INFO`) | $10–25 |
+| Static Web Apps (frontend) | Free tier | 100GB bandwidth/mo, free managed SSL, 2 custom domains — genuinely free, not a trial, and plenty for a pilot's traffic | $0 |
 | **Total (prod, steady state)** | | | **~$130–260/mo** |
 | **Total (dev, scale-to-zero)** | | | **~$20–50/mo** (mostly Postgres + AI services idle minimums) |
 

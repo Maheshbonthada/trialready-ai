@@ -80,7 +80,14 @@ class BinderDocument(Base):
     blob_path: Mapped[str] = mapped_column(String(1000), nullable=False)
 
     status: Mapped[DocumentStatus] = mapped_column(
-        Enum(DocumentStatus, name="document_status"), default=DocumentStatus.PENDING_EXTRACTION
+        # values_callable is required: SQLAlchemy's Enum type sends the Python
+        # enum member's .name ("PENDING_HUMAN_REVIEW") to the DB by default, but
+        # the native Postgres enum created in the migration
+        # (db/migrations/versions/0001_initial_schema.py) holds .value strings
+        # ("pending_human_review") — without this, every insert/update fails
+        # with "invalid input value for enum document_status".
+        Enum(DocumentStatus, name="document_status", values_callable=lambda enum_cls: [e.value for e in enum_cls]),
+        default=DocumentStatus.PENDING_EXTRACTION,
     )
 
     # Extracted / classification fields (populated by the classification agent)

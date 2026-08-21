@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import date
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 
 class GapSeverity(str, Enum):
@@ -52,6 +52,7 @@ class GapReport(BaseModel):
     total_satisfied: int
     items: list[GapItem]
 
+    @computed_field  # type: ignore[prop-decorator]  # included in API responses — see api/routers/gap_checks.py
     @property
     def is_monitor_visit_ready(self) -> bool:
         blocking = {GapSeverity.MISSING, GapSeverity.EXPIRED, GapSeverity.OUTDATED_VERSION}

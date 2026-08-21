@@ -17,29 +17,43 @@ data until `docs/compliance-checklist.md` is fully checked off.
 ## Repository layout
 
 ```
-apps/api/          FastAPI service — the whole product today
+apps/api/          FastAPI service — the product's backend
   src/trialready_api/
     agents/         The one genuinely agentic step: document OCR + classification
     services/       Orchestration + the deterministic compliance rules engine
     api/routers/    Thin HTTP layer
     db/             SQLAlchemy models + Alembic migrations
   tests/
+apps/web/           React + TypeScript SPA (Vite) — sites, protocols, binder upload, gap report
 data/               Canonical Site Regulatory Binder checklist (config-as-code)
 infra/bicep/        All Azure infrastructure, as code
 docs/               Architecture, cost model, compliance checklist, runbook
-.github/workflows/  CI (every PR) and CD (manual/tag-triggered deploy)
+.github/workflows/  CI (every PR) and CD (manual/tag-triggered deploy, API + web)
 ```
 
-## Quick start (local, zero Azure credentials required)
+## Quick start (local)
 
+Backend (needs Postgres — Docker, or your own local instance):
 ```
-cp apps/api/.env.example apps/api/.env
-docker compose up --build
+cp apps/api/.env.example apps/api/.env   # fill in OPENAI_API_KEY to run real classification, or leave blank for fakes
+docker compose up -d postgres            # exposes host port 5433, not 5432 — see docker-compose.yml
+cd apps/api && pip install -e ".[dev]"
+alembic upgrade head
+uvicorn trialready_api.main:app --reload --app-dir src
 ```
+API docs at `http://localhost:8000/docs`. With `AZURE_OPENAI_ENDPOINT` /
+`DOC_INTELLIGENCE_ENDPOINT` unset, OCR runs against an in-repo fake (empty
+text) and classification runs against a fake unless `AI_PROVIDER=openai` +
+`OPENAI_API_KEY` are set, in which case it's a real `gpt-4o-mini` call — see
+`apps/api/src/trialready_api/deps.py`.
 
-API docs at `http://localhost:8000/docs`. Every external Azure dependency
-(auth, OCR, LLM classification, blob storage) runs against in-repo fakes when
-unconfigured — see `apps/api/src/trialready_api/deps.py`.
+Frontend:
+```
+cp apps/web/.env.example apps/web/.env.local
+cd apps/web && npm install && npm run dev
+```
+Open `http://localhost:5173`. It talks straight to the API above — no build
+step needed to see backend changes reflected.
 
 ## Running tests
 

@@ -78,6 +78,18 @@ checklist itself (see `data/essential_documents.yaml`).
 | `services/document_ingestion.py` / `report_service.py` | Orchestration only: sequence the pure/testable pieces, handle the one transaction, write the one audit entry. |
 | `api/routers/*` | Thin — HTTP concerns (status codes, request/response shapes) only. No business logic lives in a router. |
 
+## Frontend
+
+`apps/web` is a small React 19 + TypeScript SPA (Vite build, react-router, zero
+state-management library — three routes and four API calls don't need one).
+It talks to the API over plain `fetch`, holds no business logic of its own
+(notably: `GapReport.is_monitor_visit_ready` is read from the API response,
+never recomputed client-side — see `api/types.ts`), and ships as a static
+bundle to Azure Static Web Apps' Free tier (`infra/bicep/modules/static-web-app.bicep`).
+`CORS_ALLOWED_ORIGINS` on the API is wired to the Static Web App's actual
+hostname at deploy time (`main.bicep`), not a guessed custom domain — CORS has
+to work from the first deploy, before anyone points a real domain at it.
+
 ## Latency budget (target: p95 under 6s for document upload, under 500ms for a gap check)
 
 - **Gap check** never calls an external service — it's a Postgres read plus an

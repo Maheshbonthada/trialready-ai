@@ -1,0 +1,70 @@
+name: Web CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+  push:
+    tags: ["v*"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve the deployed API URL
+        id: api
+        run: |
+          ENV="${{ inputs.environment || 'dev' }}"
+          FQDN=$(az containerapp show --name "tr-${ENV}-api" --resource-group "rg-trialready-${ENV}" \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "url=https://${FQDN}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Build (API URL baked in at build time — Static Web Apps serves a static bundle, no runtime env injection)
+        working-directory: apps/web
+        env:
+          VITE_API_BASE_URL: ${{ steps.api.outputs.url }}
+          VITE_ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Get Static Web Apps deployment token
+        id: swa
+        run: |
+          ENV="${{ inputs.environment || 'dev' }}"
+          TOKEN=$(az staticwebapp secrets list --name "tr-${ENV}-web" --resource-group "rg-trialready-${ENV}" \
+            --query "properties.apiKey" -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: apps/web/dist
+          skip_app_build: true
+          output_location: ""

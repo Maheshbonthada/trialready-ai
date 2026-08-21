@@ -69,6 +69,13 @@ module documentIntelligence 'modules/document-intelligence.bicep' = {
   params: { location: location, namePrefix: namePrefix, environmentTag: environmentTag }
 }
 
+// --- Frontend hosting (Free tier — $0/month, see module docstring) ---
+
+module staticWebApp 'modules/static-web-app.bicep' = {
+  name: 'static-web-app'
+  params: { location: location, namePrefix: namePrefix, environmentTag: environmentTag }
+}
+
 // --- Compute ---
 
 module containerAppsEnv 'modules/container-apps-env.bicep' = {
@@ -117,6 +124,7 @@ module containerApp 'modules/container-app-api.bicep' = {
     entraClientId: entraClientId
     entraIssuer: entraIssuer
     entraAudience: entraAudience
+    corsAllowedOrigins: 'https://${staticWebApp.outputs.defaultHostname}'
   }
   dependsOn: [databaseUrlSecret]
 }
@@ -217,5 +225,7 @@ resource migrateKvSecretsAssignment 'Microsoft.Authorization/roleAssignments@202
 }
 
 output apiUrl string = 'https://${containerApp.outputs.fqdn}'
+output webUrl string = 'https://${staticWebApp.outputs.defaultHostname}'
+output staticWebAppName string = staticWebApp.outputs.staticSiteName
 output containerRegistryLoginServer string = registry.outputs.loginServer
 output keyVaultName string = keyVault.outputs.keyVaultName
