@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+.env
+.env.*
+!.env.example
+
+.vscode/
+.idea/
+
+# Local Postgres volume mounts, if ever bind-mounted instead of a named volume
+pgdata/

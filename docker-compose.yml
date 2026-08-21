@@ -1,0 +1,39 @@
+# Local development only — never used in Azure. In Azure, Postgres is a managed
+# Flexible Server (infra/bicep/modules/postgres.bicep) and Azure OpenAI/Document
+# Intelligence/Blob Storage are real managed services. Locally, everything except
+# Postgres runs against the in-repo fakes (see apps/api/src/trialready_api/deps.py)
+# so `docker compose up` works with zero Azure credentials.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: trialready
+      POSTGRES_PASSWORD: trialready
+      POSTGRES_DB: trialready
+    ports:
+      - "5432:5432"
+    volumes:
+      - trialready-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trialready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql+asyncpg://trialready:trialready@postgres:5432/trialready
+      AUTH_DISABLED_FOR_LOCAL_DEV: "true"
+      LOG_LEVEL: DEBUG
+
+volumes:
+  trialready-pg-data:

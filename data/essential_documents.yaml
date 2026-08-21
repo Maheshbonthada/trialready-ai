@@ -1,0 +1,168 @@
+# Canonical Site Regulatory Binder checklist.
+#
+# Scope: SITE-level essential documents (ICH E6(R2) §8, 21 CFR Part 312/812 analogues).
+# Deliberately excludes subject-level source documents and CRFs — those live in the
+# EDC/eISF, not the site regulatory binder, and are out of scope for this MVP wedge.
+#
+# expiry_policy:
+#   none              -> document does not expire on its own (superseded by version only)
+#   fixed_annual      -> expires N days after effective_date, renewal cadence is calendar-driven
+#   protocol_defined  -> expiry is read from the document itself (e.g. IRB approval end date)
+#   custom_days       -> expires N days after effective_date, N given by expiry_days
+#
+# alert_window_days: how many days before expiry the gap-checker should flag "expiring soon"
+
+- id: irb_approval_letter
+  name: "IRB/IEC Initial Approval Letter"
+  category: ethics_committee
+  required: true
+  expiry_policy: protocol_defined
+  alert_window_days: 60
+  regulatory_basis: "ICH E6(R2) §8.2.3; 21 CFR 56.109"
+
+- id: irb_continuing_review
+  name: "IRB/IEC Continuing Review Approval"
+  category: ethics_committee
+  required: true
+  expiry_policy: fixed_annual
+  expiry_days: 365
+  alert_window_days: 60
+  regulatory_basis: "21 CFR 56.109(f)"
+
+- id: irb_roster_or_assurance
+  name: "IRB Roster / Composition or Federalwide Assurance"
+  category: ethics_committee
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "ICH E6(R2) §8.2.4"
+
+- id: informed_consent_form_current
+  name: "IRB-Approved Informed Consent Form (current version)"
+  category: consent
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "ICH E6(R2) §8.2.10; 21 CFR 50.27"
+  version_sensitive: true
+
+- id: protocol_signature_page
+  name: "Signed Protocol & Amendments (signature page)"
+  category: protocol
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "ICH E6(R2) §8.2.1-8.2.2"
+  version_sensitive: true
+
+- id: investigator_brochure_ack
+  name: "Investigator's Brochure — current version acknowledgment"
+  category: protocol
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "ICH E6(R2) §8.2.1"
+  version_sensitive: true
+
+- id: form_1572_or_investigator_statement
+  name: "FDA Form 1572 / Statement of Investigator"
+  category: investigator_qualification
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "21 CFR 312.53(c); ICH E6(R2) §8.2.13"
+
+- id: investigator_cv
+  name: "Investigator & Sub-Investigator CVs (current, signed, dated)"
+  category: investigator_qualification
+  required: true
+  expiry_policy: fixed_annual
+  expiry_days: 730
+  alert_window_days: 90
+  regulatory_basis: "ICH E6(R2) §8.2.13"
+
+- id: gcp_training_certificate
+  name: "GCP Training Certificate — study team"
+  category: investigator_qualification
+  required: true
+  expiry_policy: fixed_annual
+  expiry_days: 1095
+  alert_window_days: 90
+  regulatory_basis: "ICH E6(R2) §2.8"
+
+- id: medical_license
+  name: "Investigator Medical License"
+  category: investigator_qualification
+  required: true
+  expiry_policy: protocol_defined
+  alert_window_days: 90
+  regulatory_basis: "State licensing board; ICH E6(R2) §8.2.13"
+
+- id: financial_disclosure_form
+  name: "Financial Disclosure Form (Investigator & Sub-Investigators)"
+  category: investigator_qualification
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "21 CFR Part 54"
+
+- id: delegation_of_authority_log
+  name: "Delegation of Authority Log"
+  category: site_operations
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "ICH E6(R2) §8.3.24"
+  living_document: true
+
+- id: lab_certification
+  name: "Local Lab Certification (CLIA/CAP) & Accreditation"
+  category: laboratory
+  required: true
+  expiry_policy: protocol_defined
+  alert_window_days: 60
+  regulatory_basis: "ICH E6(R2) §8.2.12"
+
+- id: lab_normal_ranges
+  name: "Local Lab Normal Reference Ranges"
+  category: laboratory
+  required: true
+  expiry_policy: fixed_annual
+  expiry_days: 365
+  alert_window_days: 30
+  regulatory_basis: "ICH E6(R2) §8.2.12"
+
+- id: ip_accountability_log
+  name: "Investigational Product Accountability Log"
+  category: investigational_product
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "ICH E6(R2) §8.3.13"
+  living_document: true
+
+- id: sponsor_investigator_agreement
+  name: "Signed Clinical Trial / Investigator Agreement"
+  category: agreements
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "ICH E6(R2) §8.2.14-8.2.15"
+
+- id: insurance_indemnification
+  name: "Insurance / Indemnification Statement"
+  category: agreements
+  required: true
+  expiry_policy: fixed_annual
+  expiry_days: 365
+  alert_window_days: 60
+  regulatory_basis: "ICH E6(R2) §8.2.16"
+
+- id: monitoring_visit_log
+  name: "Monitoring Visit Log"
+  category: site_operations
+  required: true
+  expiry_policy: none
+  alert_window_days: 0
+  regulatory_basis: "ICH E6(R2) §8.3.9-8.3.10"
+  living_document: true
