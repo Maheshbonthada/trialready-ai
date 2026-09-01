@@ -8,6 +8,40 @@ soon, or stuck pending review, before a monitor visit finds it for you.
 Full product/market rationale: see the "Site, Not Sponsor" idea in the earlier
 research memo. This repo is the production build of that MVP wedge.
 
+## Architecture at a glance
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Coord as 🧑‍💼 Site Coordinator
+    participant API as ⚙️ Container App (FastAPI)
+    participant Blob as 🗄️ Blob Storage
+    participant DI as 🔎 Document Intelligence (OCR)
+    participant LLM as 🤖 Azure OpenAI (gpt-4o-mini)
+    participant DB as 🐘 Postgres
+
+    Coord->>API: Upload binder document (PDF)
+    API->>Blob: Store document
+    API->>DI: OCR + layout extraction
+    DI-->>API: Text + key/value pairs
+    API->>LLM: Classify doc type, extract dates
+    LLM-->>API: Type, dates, confidence score
+    alt confidence >= 0.85
+        API->>DB: Save document — ACCEPTED
+    else confidence < 0.85
+        API->>DB: Save document — PENDING_REVIEW
+    end
+    API-->>Coord: 201 Created
+
+    Coord->>API: Request gap check
+    API->>DB: Read all documents for protocol
+    Note over API: evaluate_binder() — pure,<br/>deterministic, zero LLM calls
+    API->>DB: Save GapCheckRun + audit entry
+    API-->>Coord: GapReport — missing / expired / expiring / pending
+```
+
+The LLM only classifies unstructured documents; the pass/fail compliance decision is a pure, deterministic function — see [`docs/architecture.md`](docs/architecture.md#why-the-decision-layer-is-not-an-agent) for why that split matters in a regulated domain.
+
 ## Status
 
 **Pre-launch codebase.** Built to deploy to Azure the moment there's budget —
